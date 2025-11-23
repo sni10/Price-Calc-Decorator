@@ -23,8 +23,8 @@ RUN pecl install redis && docker-php-ext-enable redis \
 
 RUN docker-php-ext-install mbstring exif pcntl bcmath gd pdo pdo_mysql zip
 
-#COPY ./nginx/php.ini /usr/local/etc/php/conf.d/custom-php.ini
-#COPY ./nginx/php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
+COPY ./nginx/php.ini /usr/local/etc/php/conf.d/custom-php.ini
+COPY ./nginx/php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
 
 COPY . /var/www
 

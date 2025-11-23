@@ -15,15 +15,8 @@ services:
             context: .
             dockerfile: Dockerfile
         container_name: php
-
         env_file:
             - .env
-
-        volumes:
-            - .:/var/www
-            - ./docker/nginx/test/php.ini:/usr/local/etc/php/conf.d/custom-php.ini
-            - ./docker/nginx/test/php-fpm.conf:/usr/local/etc/php-fpm.d/www.conf
-
         working_dir: /var/www
         networks:
             - laravel

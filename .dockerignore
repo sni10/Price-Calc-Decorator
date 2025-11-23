@@ -1,10 +1,8 @@
 .idea/
+.git/
 node_modules/
 vendor/
-.env
-dbdata
+dbdata/
 *.log
-node_modules
-composer.lock
-npm-debug.log
-.git
+.composer/
+storage/coverage-report/

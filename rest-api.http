@@ -1,0 +1,37 @@
+###
+POST http://localhost:8000/api/v1/login
+Accept: application/json
+Content-Type: application/json
+
+{
+    "email": "test@copy.com",
+    "password": "password123"
+}
+> {%
+    client.global.set("access_token", response.body.access_token);
+    client.global.set("refresh_token", response.body.refresh_token);
+    client.global.set("token_type", response.body.token_type);
+%}
+
+###
+POST http://localhost:8000/api/v1/orders
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token_type}} {{access_token}}
+
+> {%  client.global.set("order_id", response.body.data.order_id); %}
+
+###
+POST http://localhost:8000/api/v1/calculate-price
+Accept: application/json
+Content-Type: application/json
+Authorization: {{token_type}} {{access_token}}
+
+{
+  "order_id": {{order_id}},
+  "category_id": 1,
+  "location_id": 1,
+  "quantity": 30,
+  "base_price": 1000.0,
+  "apply_seller_discount": 1
+}

@@ -1,0 +1,217 @@
+@startuml
+
+interface RepositoryInterface {
+    +findById(id: int): object
+    +save(entity: object): void
+}
+
+interface ProductRepositoryInterface extends RepositoryInterface {
+    +findById(id: int): Product
+}
+
+interface SellerRepositoryInterface extends RepositoryInterface {
+    +findById(id: int): Seller
+}
+
+interface CategoryRepositoryInterface extends RepositoryInterface {
+    +findById(id: int): Category
+}
+
+interface LocationRepositoryInterface extends RepositoryInterface {
+    +findById(id: int): Location
+}
+
+interface OrderRepositoryInterface extends RepositoryInterface {
+    +findById(id: int): Order
+}
+
+interface PriceRuleRepositoryInterface extends RepositoryInterface {
+    +findById(id: int): PriceRule
+}
+
+class ProductRepository implements ProductRepositoryInterface {
+    +findById(id: int): Product
+    +save(product: Product): void
+}
+
+class SellerRepository implements SellerRepositoryInterface {
+    +findById(id: int): Seller
+    +save(seller: Seller): void
+}
+
+class CategoryRepository implements CategoryRepositoryInterface {
+    +findById(id: int): Category
+    +save(category: Category): void
+}
+
+class LocationRepository implements LocationRepositoryInterface {
+    +findById(id: int): Location
+    +save(location: Location): void
+}
+
+class OrderRepository implements OrderRepositoryInterface {
+    +findById(id: int): Order
+    +save(order: Order): void
+}
+
+class PriceRuleRepository implements PriceRuleRepositoryInterface {
+    +findById(id: int): PriceRule
+    +save(rule: PriceRule): void
+}
+
+interface PricingStrategy {
+    +calculatePrice(order: Order): float
+    +getDescription(): string
+}
+
+class BasePriceStrategy implements PricingStrategy {
+    +calculatePrice(order: Order): float
+    +getDescription(): string
+}
+
+abstract class PriceDecorator implements PricingStrategy {
+    -component: PricingStrategy
+    +__construct(component: PricingStrategy)
+    +calculatePrice(order: Order): float
+    +getDescription(): string
+}
+
+class CategoryPricingDecorator extends PriceDecorator {
+    +calculatePrice(order: Order): float
+    +getDescription(): string
+}
+
+class LocationPricingDecorator extends PriceDecorator {
+    +calculatePrice(order: Order): float
+    +getDescription(): string
+}
+
+class VolumeDiscountDecorator extends PriceDecorator {
+    +calculatePrice(order: Order): float
+    +getDescription(): string
+}
+
+class SellerDiscountDecorator extends PriceDecorator {
+    +calculatePrice(order: Order): float
+    +getDescription(): string
+}
+
+class Product {
+    -id: int
+    -basePrice: float
+    -categoryId: int
+    +__construct(basePrice: float, categoryId: int)
+    +getBasePrice(): float
+    +getCategoryId(): int
+    +getCategory(): Category
+}
+
+class Category {
+    -id: int
+    -name: string
+    +__construct(name: string)
+    +getId(): int
+    +getName(): string
+}
+
+class Seller {
+    -id: int
+    -personalDiscount: float
+    +__construct(personalDiscount: float)
+    +getPersonalDiscount(): float
+    +getId(): int
+}
+
+class Location {
+    -id: int
+    -name: string
+    +__construct(name: string)
+    +getId(): int
+    +getName(): string
+}
+
+class Order {
+    -id: int
+    -product: Product
+    -seller: Seller
+    -location: Location
+    -quantity: int
+    -finalPrice: float
+    -details: List<string>
+    -appliedRules: List<PriceRule>
+    +__construct(product: Product, seller: Seller, location: Location, quantity: int)
+    +getProduct(): Product
+    +getSeller(): Seller
+    +getLocation(): Location
+    +getQuantity(): int
+    +addDetail(detail: string): void
+    +getDetails(): List<string>
+    +setFinalPrice(price: float): void
+    +getFinalPrice(): float
+    +applyRule(rule: PriceRule): void
+}
+
+class PriceRule {
+    -id: int
+    -entityType: string
+    -entityId: int
+    -operator: string
+    -value: string
+    -adjustmentType: string
+    -adjustmentValue: float
+    -description: string
+    +applyRule(price: float, order: Order): float
+}
+
+class PriceRuleService {
+    +calculateFinalPrice(order: Order): float
+    -getApplicableRules(order: Order): List<PriceRule>
+    -applyRule(price: float, rule: PriceRule): float
+}
+
+class PricingContext {
+    -order: Order
+    -rules: List<PriceRule>
+    +addRule(rule: PriceRule): void
+    +calculatePrice(): float
+}
+
+class RuleEngine {
+    -strategies: List<PricingStrategy>
+    +applyRules(context: PricingContext): float
+}
+
+PricingStrategy <|.. BasePriceStrategy
+PricingStrategy <|.. PriceDecorator
+PriceDecorator <|-- CategoryPricingDecorator
+PriceDecorator <|-- LocationPricingDecorator
+PriceDecorator <|-- VolumeDiscountDecorator
+PriceDecorator <|-- SellerDiscountDecorator
+
+Product o-- Category
+Order o-- Product
+Order o-- Seller
+Order o-- Location
+Order o-- PriceRule
+
+ProductRepositoryInterface <|.. ProductRepository
+SellerRepositoryInterface <|.. SellerRepository
+CategoryRepositoryInterface <|.. CategoryRepository
+LocationRepositoryInterface <|.. LocationRepository
+OrderRepositoryInterface <|.. OrderRepository
+PriceRuleRepositoryInterface <|.. PriceRuleRepository
+
+RepositoryInterface <|.. ProductRepositoryInterface
+RepositoryInterface <|.. SellerRepositoryInterface
+RepositoryInterface <|.. CategoryRepositoryInterface
+RepositoryInterface <|.. LocationRepositoryInterface
+RepositoryInterface <|.. OrderRepositoryInterface
+RepositoryInterface <|.. PriceRuleRepositoryInterface
+
+PriceRuleService ..> PricingContext
+PriceRuleService ..> RuleEngine
+
+PricingContext *-- "many" PriceRule : contains
+RuleEngine *-- "many" PricingStrategy : uses
+
+@enduml

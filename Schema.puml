@@ -1,217 +1,237 @@
 @startuml
 
-interface RepositoryInterface {
-    +findById(id: int): object
-    +save(entity: object): void
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+
+title Order Dynamic Price Strategy Decorator - Architecture
+
+package "Contracts" {
+    interface PricingStrategyInterface {
+        +calculatePrice(order: Order, rule: mixed): float
+        +getDescription(): string
+    }
+
+    interface OrderRepositoryInterface {
+        +findById(id: int): Order
+        +save(order: Order): void
+    }
+
+    interface SellerRepositoryInterface {
+        +findById(id: int): Seller
+        +save(seller: Seller): void
+    }
+
+    interface CategoryRepositoryInterface {
+        +findById(id: int): Category
+    }
+
+    interface LocationRepositoryInterface {
+        +findById(id: int): Location
+    }
+
+    interface PriceRuleRepositoryInterface {
+        +findById(id: int): PriceRule
+        +allActiveRules(orderId: int): Collection
+        +save(rule: PriceRule): void
+    }
+
+    interface BuiltinPriceRuleRepositoryInterface {
+        +activeRule(strategy, orderId: int, discountValue: float): BuiltinPriceRule
+        +save(rule: BuiltinPriceRule): void
+    }
+
+    interface UserRepositoryInterface {
+        +findById(id: int): User
+        +findByEmail(email: string): User
+        +save(user: User): void
+    }
+
+    interface TokenRepositoryInterface {
+        +create(user: User): string
+        +revoke(token: string): void
+    }
 }
 
-interface ProductRepositoryInterface extends RepositoryInterface {
-    +findById(id: int): Product
+package "PricingStrategy" {
+    class BasePriceStrategy implements PricingStrategyInterface {
+        +calculatePrice(order: Order, rule: mixed): float
+        +getDescription(): string
+    }
+
+    abstract class PriceDecorator implements PricingStrategyInterface {
+        #pricingStrategy: PricingStrategyInterface
+        +__construct(strategy: PricingStrategyInterface)
+        +activate(rule): mixed
+    }
+
+    class CategoryPricingDecorator extends PriceDecorator {
+        +calculatePrice(order: Order, rule: mixed): float
+        +getDescription(): string
+    }
+
+    class LocationPricingDecorator extends PriceDecorator {
+        +calculatePrice(order: Order, rule: mixed): float
+        +getDescription(): string
+    }
+
+    class SellerDiscountDecorator extends PriceDecorator {
+        +calculatePrice(order: Order, rule: mixed): float
+        +getDescription(): string
+    }
+
+    class VolumeDiscountDecorator extends PriceDecorator {
+        #value: float
+        #type: string
+        #condition_value: float
+        #condition_type: string
+        +__construct(strategy, discount_value, discount_type, condition_value, condition_type)
+        +calculatePrice(order: Order, rule: mixed): float
+        +getDescription(): string
+        +getDiscountValue(): float
+        +getDiscountType(): string
+        +getConditionValue(): float
+        +getConditionType(): string
+    }
 }
 
-interface SellerRepositoryInterface extends RepositoryInterface {
-    +findById(id: int): Seller
+package "Services" {
+    class PricingContext {
+        -strategy: PricingStrategyInterface
+        +__construct(strategy: PricingStrategyInterface)
+        +getCurrentStrategy(): PricingStrategyInterface
+        +setStrategy(strategy: PricingStrategyInterface): void
+        +getPrice(order: Order): float
+        +calculatePrice(order: Order, rule: mixed): float
+    }
+
+    class RuleEngine {
+        -builtinPriceRuleRepository: BuiltinPriceRuleRepositoryInterface
+        -ruleRepository: PriceRuleRepositoryInterface
+        -context: PricingContext
+        +__construct(ruleRepo, builtinRepo, context)
+        +applyRules(order: Order): float
+        -applyBuiltInDiscounts(order: Order): Order
+        -checkCondition(order: Order, rule): bool
+        -getDiscountValue(strategy, order): float
+        -createStrategyForRule(rule): PricingStrategyInterface
+    }
 }
 
-interface CategoryRepositoryInterface extends RepositoryInterface {
-    +findById(id: int): Category
+package "Models" {
+    class Order {
+        -id: int
+        -seller_id: int
+        -location_id: int
+        -category_id: int
+        -quantity: int
+        -base_price: float
+        -final_price: float
+        -apply_seller_discount: bool
+        +seller(): BelongsTo
+        +location(): BelongsTo
+        +category(): BelongsTo
+        +appliedRules(): BelongsToMany
+        +appliedBuiltRules(): BelongsToMany
+        +applyRule(rule: PriceRule, amount: float): void
+        +applyBuiltRule(rule: BuiltinPriceRule, amount: float): void
+        +setOptions(options: array): void
+    }
+
+    class Seller {
+        -id: int
+        -name: string
+        -personal_discount: float
+        -user_id: int
+        +orders(): HasMany
+        +user(): BelongsTo
+    }
+
+    class Category {
+        -id: int
+        -name: string
+        -discount: float
+    }
+
+    class Location {
+        -id: int
+        -name: string
+        -discount: float
+    }
+
+    class PriceRule {
+        -id: int
+        -rule_type: string
+        -rule_name: string
+        -entity_id: int
+        -discount_type: string
+        -discount_value: float
+        -condition_type: string
+        -condition_value: float
+        -description: string
+        +orders(): BelongsToMany
+    }
+
+    class BuiltinPriceRule {
+        -id: int
+        -rule_name: string
+        -discount_type: string
+        -discount_value: float
+        -discount_amount: float
+        -description: string
+        +orders(): BelongsToMany
+    }
+
+    class User {
+        -id: int
+        -name: string
+        -email: string
+        -password: string
+        +sellers(): HasMany
+        +tokens(): HasMany
+    }
 }
 
-interface LocationRepositoryInterface extends RepositoryInterface {
-    +findById(id: int): Location
+package "Repositories" {
+    class EloquentOrderRepository implements OrderRepositoryInterface
+    class EloquentSellerRepository implements SellerRepositoryInterface
+    class EloquentCategoryRepository implements CategoryRepositoryInterface
+    class EloquentLocationRepository implements LocationRepositoryInterface
+    class EloquentPriceRuleRepository implements PriceRuleRepositoryInterface
+    class EloquentBuiltinPriceRuleRepository implements BuiltinPriceRuleRepositoryInterface
+    class EloquentUserRepository implements UserRepositoryInterface
+    class EloquentTokenRepository implements TokenRepositoryInterface
 }
 
-interface OrderRepositoryInterface extends RepositoryInterface {
-    +findById(id: int): Order
-}
+' Decorator chain relationships
+PriceDecorator o-- PricingStrategyInterface : wraps
 
-interface PriceRuleRepositoryInterface extends RepositoryInterface {
-    +findById(id: int): PriceRule
-}
+' Service relationships
+RuleEngine --> PricingContext : uses
+RuleEngine --> PriceRuleRepositoryInterface : uses
+RuleEngine --> BuiltinPriceRuleRepositoryInterface : uses
+PricingContext o-- PricingStrategyInterface : holds
 
-class ProductRepository implements ProductRepositoryInterface {
-    +findById(id: int): Product
-    +save(product: Product): void
-}
+' Model relationships
+Order --> Seller
+Order --> Location
+Order --> Category
+Order "many" -- "many" PriceRule : order_price_rules
+Order "many" -- "many" BuiltinPriceRule : order_builtin_price_rules
+Seller --> User
 
-class SellerRepository implements SellerRepositoryInterface {
-    +findById(id: int): Seller
-    +save(seller: Seller): void
-}
+note right of RuleEngine
+  Builds decorator chain:
+  BasePriceStrategy
+    → CategoryPricingDecorator
+    → LocationPricingDecorator
+    → SellerDiscountDecorator
+    → VolumeDiscountDecorator (conditional)
+end note
 
-class CategoryRepository implements CategoryRepositoryInterface {
-    +findById(id: int): Category
-    +save(category: Category): void
-}
-
-class LocationRepository implements LocationRepositoryInterface {
-    +findById(id: int): Location
-    +save(location: Location): void
-}
-
-class OrderRepository implements OrderRepositoryInterface {
-    +findById(id: int): Order
-    +save(order: Order): void
-}
-
-class PriceRuleRepository implements PriceRuleRepositoryInterface {
-    +findById(id: int): PriceRule
-    +save(rule: PriceRule): void
-}
-
-interface PricingStrategy {
-    +calculatePrice(order: Order): float
-    +getDescription(): string
-}
-
-class BasePriceStrategy implements PricingStrategy {
-    +calculatePrice(order: Order): float
-    +getDescription(): string
-}
-
-abstract class PriceDecorator implements PricingStrategy {
-    -component: PricingStrategy
-    +__construct(component: PricingStrategy)
-    +calculatePrice(order: Order): float
-    +getDescription(): string
-}
-
-class CategoryPricingDecorator extends PriceDecorator {
-    +calculatePrice(order: Order): float
-    +getDescription(): string
-}
-
-class LocationPricingDecorator extends PriceDecorator {
-    +calculatePrice(order: Order): float
-    +getDescription(): string
-}
-
-class VolumeDiscountDecorator extends PriceDecorator {
-    +calculatePrice(order: Order): float
-    +getDescription(): string
-}
-
-class SellerDiscountDecorator extends PriceDecorator {
-    +calculatePrice(order: Order): float
-    +getDescription(): string
-}
-
-class Product {
-    -id: int
-    -basePrice: float
-    -categoryId: int
-    +__construct(basePrice: float, categoryId: int)
-    +getBasePrice(): float
-    +getCategoryId(): int
-    +getCategory(): Category
-}
-
-class Category {
-    -id: int
-    -name: string
-    +__construct(name: string)
-    +getId(): int
-    +getName(): string
-}
-
-class Seller {
-    -id: int
-    -personalDiscount: float
-    +__construct(personalDiscount: float)
-    +getPersonalDiscount(): float
-    +getId(): int
-}
-
-class Location {
-    -id: int
-    -name: string
-    +__construct(name: string)
-    +getId(): int
-    +getName(): string
-}
-
-class Order {
-    -id: int
-    -product: Product
-    -seller: Seller
-    -location: Location
-    -quantity: int
-    -finalPrice: float
-    -details: List<string>
-    -appliedRules: List<PriceRule>
-    +__construct(product: Product, seller: Seller, location: Location, quantity: int)
-    +getProduct(): Product
-    +getSeller(): Seller
-    +getLocation(): Location
-    +getQuantity(): int
-    +addDetail(detail: string): void
-    +getDetails(): List<string>
-    +setFinalPrice(price: float): void
-    +getFinalPrice(): float
-    +applyRule(rule: PriceRule): void
-}
-
-class PriceRule {
-    -id: int
-    -entityType: string
-    -entityId: int
-    -operator: string
-    -value: string
-    -adjustmentType: string
-    -adjustmentValue: float
-    -description: string
-    +applyRule(price: float, order: Order): float
-}
-
-class PriceRuleService {
-    +calculateFinalPrice(order: Order): float
-    -getApplicableRules(order: Order): List<PriceRule>
-    -applyRule(price: float, rule: PriceRule): float
-}
-
-class PricingContext {
-    -order: Order
-    -rules: List<PriceRule>
-    +addRule(rule: PriceRule): void
-    +calculatePrice(): float
-}
-
-class RuleEngine {
-    -strategies: List<PricingStrategy>
-    +applyRules(context: PricingContext): float
-}
-
-PricingStrategy <|.. BasePriceStrategy
-PricingStrategy <|.. PriceDecorator
-PriceDecorator <|-- CategoryPricingDecorator
-PriceDecorator <|-- LocationPricingDecorator
-PriceDecorator <|-- VolumeDiscountDecorator
-PriceDecorator <|-- SellerDiscountDecorator
-
-Product o-- Category
-Order o-- Product
-Order o-- Seller
-Order o-- Location
-Order o-- PriceRule
-
-ProductRepositoryInterface <|.. ProductRepository
-SellerRepositoryInterface <|.. SellerRepository
-CategoryRepositoryInterface <|.. CategoryRepository
-LocationRepositoryInterface <|.. LocationRepository
-OrderRepositoryInterface <|.. OrderRepository
-PriceRuleRepositoryInterface <|.. PriceRuleRepository
-
-RepositoryInterface <|.. ProductRepositoryInterface
-RepositoryInterface <|.. SellerRepositoryInterface
-RepositoryInterface <|.. CategoryRepositoryInterface
-RepositoryInterface <|.. LocationRepositoryInterface
-RepositoryInterface <|.. OrderRepositoryInterface
-RepositoryInterface <|.. PriceRuleRepositoryInterface
-
-PriceRuleService ..> PricingContext
-PriceRuleService ..> RuleEngine
-
-PricingContext *-- "many" PriceRule : contains
-RuleEngine *-- "many" PricingStrategy : uses
+note bottom of PriceDecorator
+  Open/Closed Principle:
+  New pricing rule = new decorator class
+  No modification of existing code
+end note
 
 @enduml
